@@ -1,0 +1,40 @@
+<div class="m-0 vh-100 row justify-content-center align-items-center">
+  <div class="col-auto p-5 text-center">
+    <h3>Acceso a la API</h3>
+    <form action="/api/login/signin/api" method="POST">
+      <div class="mb-3">
+        <!-- <label for="exampleInputEmail1" class="form-label"> Usuario </label> -->
+        <input class="form-control" name="user" placeholder="Usuario" />
+        <!-- <div id="emailHelp" class="form-text">
+          We'll never share your email with anyone else.
+        </div> -->
+      </div>
+      <div class="mb-3">
+        <!-- <label for="exampleInputPassword1" class="form-label">
+          Contraseña
+        </label> -->
+        <input
+          type="password"
+          class="form-control"
+          name="pass"
+          placeholder="Contraseña"
+        />
+      </div>
+      <!-- <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="exampleCheck1" />
+        <label class="form-check-label" for="exampleCheck1">Check me out</label>
+      </div> -->
+      <button type="submit" class="btn btn-primary">Ingresar</button>
+    </form>
+  </div>
+</div>
+
+<!-- <script>
+  function myFunc(e) {
+    e.preventDefault();
+    const usuario = document.getElementById("exampleInputEmail1").value;
+    const contraseña = document.getElementById("exampleInputPassword1").value;
+
+    console.log(usuario, contraseña);
+  }
+</script> -->

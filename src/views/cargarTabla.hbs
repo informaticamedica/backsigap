@@ -1,0 +1,20 @@
+<div class="m-0 vh-100 row justify-content-center align-items-center">
+  <div class="col-auto p-5 text-center">
+    <form action="/api/datos/lala" method="POST">
+      <div class="row">
+        <div class="col">
+          <input
+            accept=".xlsx,.xls,.csv"
+            class="hidden"
+            name="tabla"
+            type="file"
+            id="tabla"
+          />
+        </div>
+        <div class="col text-right">
+          <button type="submit" class="btn btn-primary">Cargar archivo</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
