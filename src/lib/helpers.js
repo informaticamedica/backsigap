@@ -31,9 +31,9 @@ helpers.verifyToken = async (req, res, next) => {
     }
 
     const payload = await jwt.verify(token, process.env.TOKEN_KEY);
-    console.log("=================payload===================");
-    console.table(payload);
-    console.log("==================payload==================");
+    // console.log("=================payload===================");
+    // console.table(payload);
+    // console.log("==================payload==================");
     if (!payload) {
       console.log("!payload", payload);
       return res.status(401).send("Unauhtorized Request");

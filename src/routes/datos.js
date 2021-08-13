@@ -115,7 +115,7 @@ router.put(
       await connection.execute(
         "SET TRANSACTION ISOLATION LEVEL READ COMMITTED"
       );
-      console.log("Finished setting the isolation level to read committed");
+      // console.log("Finished setting the isolation level to read committed");
 
       await connection.beginTransaction();
 
@@ -220,12 +220,12 @@ router.post("/planificarauditoria", helpers.verifyToken, async (req, res) => {
     observaciones,
     integrantes,
   } = req.body;
-  console.log(req.body);
+  // console.log(req.body);
 
   const connection = await mysql2.createConnection(database);
 
   await connection.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
-  console.log("Finished setting the isolation level to read committed");
+  // console.log("Finished setting the isolation level to read committed");
 
   await connection.beginTransaction();
   try {
@@ -251,7 +251,7 @@ router.post("/planificarauditoria", helpers.verifyToken, async (req, res) => {
           1
         )
     `;
-    console.log("Qauditoria", Qauditoria);
+    // console.log("Qauditoria", Qauditoria);
     const [auditoria] = await connection.execute(Qauditoria);
 
     const Integrantes = integrantes.filter(
@@ -276,14 +276,14 @@ router.post("/planificarauditoria", helpers.verifyToken, async (req, res) => {
       )}
     `;
 
-      console.log("auditoria", auditoria);
-      console.log("*********************QIntegrantes*****************");
-      console.log(QIntegrantes);
-      console.log("**************************************");
+      // console.log("auditoria", auditoria);
+      // console.log("*********************QIntegrantes*****************");
+      // console.log(QIntegrantes);
+      // console.log("**************************************");
       const IntegrantesInsertados = await connection.execute(QIntegrantes);
-      console.log("******************Integrantes********************");
-      console.log(IntegrantesInsertados);
-      console.log("**************************************");
+      // console.log("******************Integrantes********************");
+      // console.log(IntegrantesInsertados);
+      // console.log("**************************************");
       res.status(200).json({ auditoria, Integrantes: IntegrantesInsertados });
     }
 
@@ -338,9 +338,15 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
       order by 4
     `);
 
-    console.log("*************************");
-    console.log("Informe", Informe);
-    console.log("*************************");
+    const EstadoObservaciones = await pool.query(`
+      select idestadoobs, descripcion 
+      from EstadoObservaciones 
+      where activo=1
+    `);
+
+    // console.log("*************************");
+    // console.log("Informe", Informe);
+    // console.log("*************************");
 
     // console.log("lalalla", lalalla);
 
@@ -430,9 +436,9 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
           return informeSecciones;
         })
         .then(async (Secciones) => {
-          console.log("*************informe**************");
-          console.log("Secciones", Secciones);
-          console.log("*************informe**************");
+          // console.log("*************informe**************");
+          // console.log("Secciones", Secciones);
+          // console.log("*************informe**************");
           const idsecciones = [];
           Secciones.map((i) => {
             idsecciones.push(i.idseccion);
@@ -450,28 +456,38 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
             LEFT JOIN ComponenteAuditoria CA ON CA.idauditoria=${Auditoria.idauditoria} and CA.idcomponente=C.idcomponente
           WHERE CS.activo=1 and I.activo=1 and CR.activo=1 and CS.idseccion in (${idsecciones}) 
           order by CS.idseccion,CS.orden`);
-          // console.log("******************************************Items", Items);
-          // const Items = await pool.query(`
-          //   select
-          //     I.iditem,
-          //     C.descripcion,
-          //     TE.idtipoeval,
-          //     TE.componente,
-          //     ITS.idseccion,
-          //     IFNULL(A.valor, '') as Valor,
-          //     TE.descripcion as descripcionTipoEval
-          //   from ItemSeccion ITS
-          //     INNER JOIN Items I ON ITS.iditem = I.iditem
-          //     INNER JOIN TipoEvaluacion TE ON I.idtipoeval = TE.idtipoeval
-          //     INNER JOIN Criterios C ON C.idcriterio = I.idcriterio
-          //     LEFT JOIN ItemsAuditoria A ON A.iditem = I.iditem and A.idauditoria=${idauditoria}
-          //   where
-          //     ITS.activo = 1 AND
-          //     I.activo=1 AND
-          //     TE.activo=1 AND
-          //     ITS.idseccion in (${idsecciones})
-          //   ORDER BY ITS.orden
-          // `);
+          const idItems = Items.map((item, i) => item.iditem);
+          const observacionesyRecomendaciones = await pool.query(`
+            SELECT 
+              C.idcomponente, 
+              C.iditem, 
+              I.idobservacion, 
+              O.descripcion as observacion, 
+              I.idrecomendacion,
+              R.descripcion as recomendacion,
+              N.idnormativa, 
+              N.descripcion as normativa
+            FROM Componentes C
+              INNER JOIN Items I ON C.iditem = I.iditem
+              LEFT JOIN Observaciones O ON I.idobservacion = O.idobservacion
+              LEFT JOIN Recomendaciones R ON I.idrecomendacion = R.idrecomendacion
+              INNER JOIN Criterios E ON I.idcriterio = E.idcriterio
+              LEFT JOIN CriterioNormativas CN ON E.idcriterio = CN.idcriterio
+              INNER JOIN Normativas N ON CN.idnormativa = N.idnormativa
+            WHERE
+              I.iditem IN (${idItems}) and 
+              C.activo=1 and 
+              O.activo=1 and 
+              R.activo=1 and 
+              E.activo=1 and
+              CN.activo=1 and 
+              N.activo=1
+        `);
+
+          // console.log(
+          //   "observacionesyRecomendaciones",
+          //   observacionesyRecomendaciones
+          // );
           const tipoEval = await pool.query(`
             SELECT TEV.idtipoeval, V.idvalor, V.descripcion
             FROM Valores V 
@@ -483,10 +499,13 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
             return {
               ...a,
               tipoEval: tipoEval.filter((b) => b.idtipoeval == a.idtipoeval),
+              observaciones: observacionesyRecomendaciones.find(
+                (o) => o.iditem == a.iditem
+              ),
             };
           });
 
-          console.log("-------------------------->items", items);
+          // console.log("-------------------------->items", items);
           const Informe = Secciones.map((sec) => {
             return {
               ...sec,
@@ -536,7 +555,7 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
 router.post("/auditoria/:idauditoria", async (req, res) => {
   const { idauditoria } = req.params;
   const { items } = req.body;
-  console.log("items", items);
+  // console.log("items", items);
   const preguntarEstado = `
   SELECT idestadoauditoria 
   from Auditorias 
@@ -567,16 +586,16 @@ router.post("/auditoria/:idauditoria", async (req, res) => {
   const connection = await mysql2.createConnection(database);
 
   await connection.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
-  console.log("Finished setting the isolation level to read committed");
+  // console.log("Finished setting the isolation level to read committed");
 
   await connection.beginTransaction();
 
   try {
     const [estado] = await connection.execute(preguntarEstado);
-    console.log("estado", estado);
-    console.log("estado[0].idestadoauditoria", estado[0].idestadoauditoria);
+    // console.log("estado", estado);
+    // console.log("estado[0].idestadoauditoria", estado[0].idestadoauditoria);
     let Items;
-    console.log(estado[0].idestadoauditoria);
+    // console.log(estado[0].idestadoauditoria);
     const Estado = estado[0].idestadoauditoria;
 
     switch (Estado) {
@@ -604,18 +623,15 @@ router.post("/auditoria/:idauditoria", async (req, res) => {
           //   itemActual.valor != item.Valor
           // );
           if (itemActual.valor != item.Valor) {
-            console.log("itemActual", itemActual);
-            console.log("item", item);
-            console.log(
-              "itemActual.valor != item.Valor",
-              itemActual.valor != item.Valor
-            );
+            // console.log("itemActual", itemActual);
+            // console.log("item", item);
+
             const aux = await connection.execute(`
               UPDATE ItemsAuditoria
               SET valor = '${item.Valor}'
               WHERE idauditoria= ${idauditoria} AND iditem=${item.iditem};
             `);
-            console.log(" UPDATE ItemsAuditoria", aux);
+            // console.log(" UPDATE ItemsAuditoria", aux);
           }
           // console.log(`
           //     UPDATE ItemsAuditoria
@@ -634,13 +650,13 @@ router.post("/auditoria/:idauditoria", async (req, res) => {
 
     // if (estado[0].idestadoauditoria == 1) {
     // } else if (estado[0].idestadoauditoria == 2) {
-    //   console.log("");
+    // // console.log("");
 
-    //   console.log("estado.idestadoauditoria != 1", estado);
+    // // console.log("estado.idestadoauditoria != 1", estado);
     // } else {
     // }
 
-    console.log("connection.commit");
+    // console.log("connection.commit");
   } catch (error) {
     connection.rollback();
     console.error(error);
@@ -654,7 +670,7 @@ router.get("/lala", async (req, res) => {
   const connection = await mysql2.createConnection(database);
 
   await connection.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
-  console.log("Finished setting the isolation level to read committed");
+  // console.log("Finished setting the isolation level to read committed");
 
   await connection.beginTransaction();
 
