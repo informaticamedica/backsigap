@@ -334,7 +334,7 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
       (select count(I.idseccion) from Secciones I where I.idseccionmadre = S.idseccion) as Secciones,
       (select O.orden from Secciones O where O.idseccion=S.idseccion) as Orden from Secciones S
       where S.activo = 1 AND
-      S.idseccionmadre in (select SI.idseccion from SeccionInforme SI where SI.idinforme=${Auditoria.idinforme} and SI.versioninforme=${Auditoria.versioninforme} and SI.guia=1 and SI.activo=1)
+      S.idseccionmadre in (select SI.idseccion from SeccionInforme SI where SI.idinforme=${Auditoria.idinforme} and SI.versioninforme=${Auditoria.versioninforme} and SI.activo=1)
       order by 4
     `);
 
