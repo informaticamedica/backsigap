@@ -153,6 +153,17 @@ router.get("/planificarauditoria", helpers.verifyToken, async (req, res) => {
       where activo=1
     `);
 
+    const idsTipoInformeAux = new Set(TipoInforme.map((inf) => inf.idinforme));
+    const idsTipoInforme = [...idsTipoInformeAux].join(",");
+    const verActTipoInformeAux = new Set(
+      TipoInforme.map((inf) => inf.versionactual)
+    );
+    const verActTipoInforme = [...verActTipoInformeAux].join(",");
+
+    // console.log("TipoInforme",TipoInforme);
+    // console.log("idsTipoInforme",`${idsTipoInforme}`);
+    // console.log("verActTipoInforme",`${verActTipoInforme}`);
+
     const Usuarios = await pool.query(`
       select 
         U.legajo, 
@@ -175,6 +186,79 @@ router.get("/planificarauditoria", helpers.verifyToken, async (req, res) => {
       order by SI.idinforme, SI.versioninforme, S.descripcion
     `);
 
+    const Secciones = await pool.query(`
+      SELECT 
+        S.idseccion, 
+        S.descripcion,
+        (SELECT count(*) FROM Secciones I WHERE I.idseccionmadre=S.idseccion AND (I.guia=1 OR I.informe=1)) as SubSecciones,
+        (
+          SELECT COUNT(*) 
+          FROM ComponenteSeccion CS 
+            INNER JOIN Componentes C ON CS.idcomponente = C.idcomponente 
+          WHERE 
+            CS.idseccion=S.idseccion and 
+            C.activo=1 and C.editable=1
+        ) as Editables,
+        SI.idinforme, 
+        SI.versioninforme
+      FROM SeccionInforme SI 
+        INNER JOIN Secciones S ON SI.idseccion = S.idseccion
+      WHERE 
+        SI.idinforme in (${idsTipoInforme}) AND 
+        SI.versioninforme in (${verActTipoInforme}) AND 
+        SI.activo=1 AND
+        (S.guia = 1 or S.informe=1) AND
+        S.activo=1
+      ORDER BY SI.orden
+    `);
+
+    // console.log("Secciones",Secciones);
+    // console.log("-------------------------------");
+    // console.log("-------------------------------");
+    // console.log("-------------------------------");
+    // console.log("Secciones con SubSecciones",Secciones.filter(s => s.SubSecciones));
+
+    const idSubSecciones = Secciones.filter((s) => s.SubSecciones).map(
+      (s) => s.idseccion
+    );
+
+    const subSecciones = await pool.query(`
+      SELECT 
+        S.idseccionmadre,
+        S.idseccion, 
+        S.descripcion,
+        (SELECT count(*) FROM Secciones I WHERE I.idseccionmadre=S.idseccion AND (I.guia=1 OR I.informe=1)) as SubSecciones,
+        (
+          SELECT COUNT(*) 
+          FROM ComponenteSeccion CS 
+            INNER JOIN Componentes C ON CS.idcomponente = C.idcomponente 
+          WHERE 
+            CS.idseccion=S.idseccion and 
+            C.activo=1 and C.editable=1
+        ) as Editables
+      FROM Secciones S 
+      WHERE 
+        S.idseccionmadre in (${idSubSecciones}) AND
+        (S.guia = 1 or S.informe=1) AND
+        S.activo=1
+      ORDER BY S.orden
+    `);
+
+    // console.log("*************************");
+    // console.log("*************************");
+    // console.log("*************************");
+    // console.log("subSecciones",subSecciones);
+
+    const arbolSecciones = Secciones.map((s) => {
+      return {
+        ...s,
+        SubSecciones: subSecciones.filter(
+          (subs) => subs.idseccionmadre == s.idseccion
+        ),
+      };
+    });
+    console.log("****-------------------------***********");
+    // console.log("arbolSecciones",JSON.parse(JSON.stringify(arbolSecciones)));
     // const Areas = await pool.query(`
     //   select distinct GV.idguia, GV.versionguia, S.idareaauditoria, A.descripcion
     //   FROM GuiaVersion GV
@@ -194,7 +278,9 @@ router.get("/planificarauditoria", helpers.verifyToken, async (req, res) => {
     //   order by descripcion
     // `);
 
-    res.status(200).json({ Prestadores, TipoInforme, Usuarios, Areas });
+    res
+      .status(200)
+      .json({ Prestadores, TipoInforme, Usuarios, Areas, arbolSecciones });
   } catch (error) {
     console.error(error);
     res.status(400).json(error);
@@ -254,6 +340,12 @@ router.post("/planificarauditoria", helpers.verifyToken, async (req, res) => {
     // console.log("Qauditoria", Qauditoria);
     const [auditoria] = await connection.execute(Qauditoria);
 
+    const guardarArbolSecciones = `
+    INSERT INTO EquipoAuditoria (idusuario, idauditoria, idseccion, activo) 
+    VALUES (#idusuario1#, #idauditoria1#, #idseccion1#, 1), 
+     (#idusuario2#, #idauditoria2#, #idseccion2#, 1),
+     (#idusuario3#, #idauditoria3#, #idseccion3#, 1);
+    `;
     const Integrantes = integrantes.filter(
       (a) => a.areas != "" && a.areas != ""
     );
@@ -301,7 +393,25 @@ router.post("/planificarauditoria", helpers.verifyToken, async (req, res) => {
 
 router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
   const { idauditoria } = req.params;
+
+  const connection = await mysql2.createConnection(database);
+
+  await connection.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+
+  await connection.beginTransaction();
+
   try {
+    const algo = await connection.execute("select * from Auditorias");
+    await connection.commit();
+    res.json({ algo });
+  } catch (error) {
+    connection.rollback();
+  } finally {
+    await connection.destroy();
+  }
+
+  try {
+    console.log("idauditoria", idauditoria);
     const [Auditoria] = await pool.query(`
       select 
         A.idauditoria,
@@ -327,22 +437,22 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
         INNER JOIN UGL U ON U.idugl = P.idugl
       where A.idauditoria = ${idauditoria}
     `);
-    // console.log("Auditoria", Auditoria);
+    console.log("Auditoria", Auditoria);
 
     const Informe = await pool.query(`
       select S.idseccion, S.descripcion, 
       (select count(I.idseccion) from Secciones I where I.idseccionmadre = S.idseccion) as Secciones,
       (select O.orden from Secciones O where O.idseccion=S.idseccion) as Orden from Secciones S
       where S.activo = 1 AND
-      S.idseccionmadre in (select SI.idseccion from SeccionInforme SI where SI.idinforme=${Auditoria.idinforme} and SI.versioninforme=${Auditoria.versioninforme} and SI.activo=1)
+      S.idseccionmadre in (select SI.idseccion from SeccionInforme SI where SI.idinforme=${Auditoria?.idinforme} and SI.versioninforme=${Auditoria.versioninforme} and SI.activo=1)
       order by 4
     `);
-
-    const EstadoObservaciones = await pool.query(`
-      select idestadoobs, descripcion 
-      from EstadoObservaciones 
-      where activo=1
-    `);
+    console.log("Informe", Informe);
+    // const EstadoObservaciones = await pool.query(`
+    //   select idestadoobs, descripcion
+    //   from EstadoObservaciones
+    //   where activo=1
+    // `);
 
     // console.log("*************************");
     // console.log("Informe", Informe);
@@ -528,10 +638,6 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
     // console.log("*************secciones**************");
     // console.table(secciones);
   } catch (error) {
-    // finally {
-    //   await connection.release();
-    // }
-
     console.error(error);
     res.json({});
   }
@@ -670,7 +776,6 @@ router.get("/lala", async (req, res) => {
   const connection = await mysql2.createConnection(database);
 
   await connection.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
-  // console.log("Finished setting the isolation level to read committed");
 
   await connection.beginTransaction();
 
