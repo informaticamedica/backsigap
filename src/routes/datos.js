@@ -451,7 +451,8 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
         IFNULL(Q.descripcion,'') as Requisito, 
         I.idtipoeval,
         I.iditem,
-        TE.componente
+        TE.componente,
+        N.descripcion as Normativa
       FROM ComponenteSeccion CS 
         INNER JOIN Componentes C ON CS.idcomponente=C.idcomponente
         LEFT JOIN Items I ON C.iditem=I.iditem
@@ -460,6 +461,8 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
         LEFT JOIN Recomendaciones R ON R.idrecomendacion = I.idrecomendacion and R.activo=1
         LEFT JOIN Requisitos Q ON Q.idrequisito=I.idrequisito and Q.activo=1
         LEFT JOIN TipoEvaluacion TE ON I.idtipoeval = TE.idtipoeval
+        LEFT JOIN CriterioNormativas CN ON CR.idcriterio=CN.idcriterio and CN.activo=1
+        LEFT JOIN Normativas N ON CN.idnormativa = N.idnormativa and N.activo=1
       WHERE CS.idseccion in (${seccionesGuia.map(
         (s) => s.idseccion
       )}) AND C.guia=1 
