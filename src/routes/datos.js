@@ -487,16 +487,13 @@ router.get("/auditoria/:idauditoria", helpers.verifyToken, async (req, res) => {
       return {
         ...s,
         items: componente
-          .filter((c) => c.idseccion == s.idseccion && c.idfuente == 3)
+          .filter((c) => c.idseccion == s.idseccion)
           .map((c) => {
             return {
               ...c,
               tipoEval: tipoEval.filter((t) => t.idtipoeval == c.idtipoeval),
             };
           }),
-        input: componente.filter(
-          (c) => c.idseccion == s.idseccion && c.idfuente == 1
-        ),
       };
     });
 
